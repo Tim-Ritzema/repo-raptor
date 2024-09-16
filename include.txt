@@ -1,3 +1,5 @@
+*.js
 *.ts
 *.tsx
 package.json
+schema.prisma

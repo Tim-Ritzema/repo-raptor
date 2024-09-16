@@ -4,5 +4,3 @@
 /.next/*
 /.vscode
 /.vscode/*
-/dermi/prisma
-/dermi/prisma/*
