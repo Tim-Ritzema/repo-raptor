@@ -1,0 +1,8 @@
+/dermi/node_modules
+/dermi/node_modules/*
+/.next
+/.next/*
+/.vscode
+/.vscode/*
+/dermi/prisma
+/dermi/prisma/*
