@@ -43,6 +43,15 @@ def delete_file_if_exists(filename):
         os.remove(filename)
         print(f"Deleted existing {filename}")
 
+def read_notes(filename):
+    """Read the contents of the notes file if it exists."""
+    if os.path.exists(filename):
+        with open(filename, 'r', encoding='utf-8') as f:
+            return f.read()
+    else:
+        print(f"Warning: {filename} not found. Proceeding without notes.")
+        return ""
+
 def main():
     # Parse command-line arguments
     if len(sys.argv) < 3 or sys.argv[1] != '--folder':
@@ -63,8 +72,18 @@ def main():
         # Delete existing output.txt if it exists
         delete_file_if_exists('output.txt')
         
+        # Read notes
+        notes = read_notes('notes.txt')
+        
         # Build the aggregated file
         with open('output.txt', 'w', encoding='utf-8') as outfile:
+            # Write notes at the beginning
+            if notes:
+                outfile.write("// Contents of notes.txt\n\n")
+                outfile.write(notes)
+                outfile.write("\n\n// End of notes.txt\n\n")
+            
+            # Write contents of other files
             for file_path in matching_files:
                 outfile.write(f"// Contents of file: {file_path}\n\n")
                 try:

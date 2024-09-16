@@ -1,0 +1,1 @@
+this is a next.js web app hosted on aws ecs/fargate that uses app router. it uses mongo as a backend db and the tables are defined in schema.prisma.
