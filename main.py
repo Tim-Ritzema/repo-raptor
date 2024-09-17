@@ -2,6 +2,7 @@ import os
 import sys
 import fnmatch
 import re
+import gzip
 
 def read_patterns(filename):
     """Read patterns from a file, returning a list of strings."""
@@ -67,6 +68,33 @@ def optimize_content(content, file_extension):
 
     return content
 
+def create_output(file_path, matching_files, folder, notes):
+    """Create the output file (compressed or uncompressed)."""
+    with open(file_path, 'w', encoding='utf-8') as outfile:
+        if notes:
+            outfile.write("NOTES: ")
+            outfile.write(optimize_content(notes, '.txt'))
+            outfile.write("\n")
+        
+        for file_path in matching_files:
+            relative_path = os.path.relpath(file_path, folder)
+            file_extension = os.path.splitext(file_path)[1]
+            outfile.write(f"FILE: /{relative_path}\n")
+            try:
+                with open(file_path, 'r', encoding='utf-8') as infile:
+                    content = infile.read()
+                optimized_content = optimize_content(content, file_extension)
+                outfile.write(optimized_content)
+                outfile.write('\n')
+            except Exception as e:
+                print(f"Error reading {file_path}: {e}")
+
+def compress_file(input_file, output_file):
+    """Compress the input file using gzip."""
+    with open(input_file, 'rb') as f_in:
+        with gzip.open(output_file, 'wb') as f_out:
+            f_out.writelines(f_in)
+
 def main():
     if len(sys.argv) < 3 or sys.argv[1] != '--folder':
         print("Usage: python main.py --folder <folder_path> [--build]")
@@ -82,27 +110,23 @@ def main():
 
     if build_mode:
         delete_file_if_exists('output.txt')
+        delete_file_if_exists('output.txt.gz')
         notes = read_notes('notes.txt')
         
-        with open('output.txt', 'w', encoding='utf-8') as outfile:
-            if notes:
-                outfile.write("NOTES: ")
-                outfile.write(optimize_content(notes, '.txt'))
-                outfile.write("\n")
-            
-            for file_path in matching_files:
-                relative_path = os.path.relpath(file_path, folder)
-                file_extension = os.path.splitext(file_path)[1]
-                outfile.write(f"FILE: /{relative_path}\n")
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as infile:
-                        content = infile.read()
-                    optimized_content = optimize_content(content, file_extension)
-                    outfile.write(optimized_content)
-                    outfile.write('\n')
-                except Exception as e:
-                    print(f"Error reading {file_path}: {e}")
+        # Create uncompressed output
+        create_output('output.txt', matching_files, folder, notes)
         print("Created optimized output.txt with aggregated file contents.")
+        
+        # Create compressed output
+        compress_file('output.txt', 'output.txt.gz')
+        print("Created compressed output.txt.gz")
+        
+        # Print file sizes for comparison
+        uncompressed_size = os.path.getsize('output.txt')
+        compressed_size = os.path.getsize('output.txt.gz')
+        print(f"Uncompressed size: {uncompressed_size} bytes")
+        print(f"Compressed size: {compressed_size} bytes")
+        print(f"Compression ratio: {compressed_size/uncompressed_size:.2%}")
     else:
         delete_file_if_exists('run-scope.txt')
         with open('run-scope.txt', 'w', encoding='utf-8') as scope_file:

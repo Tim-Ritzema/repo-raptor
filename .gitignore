@@ -163,3 +163,4 @@ cython_debug/
 
 run-scope.txt
 output.txt
+output.txt.gz
