@@ -1,6 +1,7 @@
 import os
 import sys
 import fnmatch
+import re
 
 def read_patterns(filename):
     """Read patterns from a file, returning a list of strings."""
@@ -29,9 +30,7 @@ def should_exclude(file_path, exclude_patterns, base_folder):
 def crawl_directory(folder, include_patterns, exclude_patterns):
     """Recursively crawl the directory and yield files that match the criteria."""
     for root, dirs, files in os.walk(folder):
-        # Remove excluded directories
         dirs[:] = [d for d in dirs if not should_exclude(os.path.join(root, d), exclude_patterns, folder)]
-        
         for file in files:
             file_path = os.path.join(root, file)
             if should_include(file_path, include_patterns) and not should_exclude(file_path, exclude_patterns, folder):
@@ -52,8 +51,23 @@ def read_notes(filename):
         print(f"Warning: {filename} not found. Proceeding without notes.")
         return ""
 
+def optimize_content(content, file_extension):
+    """Optimize content by removing extra whitespace and comments."""
+    # Remove extra whitespace
+    content = re.sub(r'\s+', ' ', content)
+    content = content.strip()
+
+    # Remove comments (you may want to keep some comments, adjust as needed)
+    if file_extension in ['.js', '.ts', '.jsx', '.tsx', '.css']:
+        content = re.sub(r'\/\/.*?$|\/\*.*?\*\/', '', content, flags=re.MULTILINE|re.DOTALL)
+    elif file_extension in ['.py']:
+        content = re.sub(r'#.*?$|\'\'\'.*?\'\'\'|""".*?"""', '', content, flags=re.MULTILINE|re.DOTALL)
+    elif file_extension in ['.html', '.xml']:
+        content = re.sub(r'<!--.*?-->', '', content, flags=re.DOTALL)
+
+    return content
+
 def main():
-    # Parse command-line arguments
     if len(sys.argv) < 3 or sys.argv[1] != '--folder':
         print("Usage: python main.py --folder <folder_path> [--build]")
         sys.exit(1)
@@ -61,43 +75,36 @@ def main():
     folder = os.path.abspath(os.path.expanduser(sys.argv[2]))
     build_mode = '--build' in sys.argv
 
-    # Read include and exclude patterns
     include_patterns = read_patterns('include.txt')
     exclude_patterns = read_patterns('ignore.txt')
 
-    # Crawl the directory
     matching_files = list(crawl_directory(folder, include_patterns, exclude_patterns))
 
     if build_mode:
-        # Delete existing output.txt if it exists
         delete_file_if_exists('output.txt')
-        
-        # Read notes
         notes = read_notes('notes.txt')
         
-        # Build the aggregated file
         with open('output.txt', 'w', encoding='utf-8') as outfile:
-            # Write notes at the beginning
             if notes:
-                outfile.write("// Contents of notes.txt\n\n")
-                outfile.write(notes)
-                outfile.write("\n\n// End of notes.txt\n\n")
+                outfile.write("NOTES: ")
+                outfile.write(optimize_content(notes, '.txt'))
+                outfile.write("\n")
             
-            # Write contents of other files
             for file_path in matching_files:
-                outfile.write(f"// Contents of file: {file_path}\n\n")
+                relative_path = os.path.relpath(file_path, folder)
+                file_extension = os.path.splitext(file_path)[1]
+                outfile.write(f"FILE: /{relative_path}\n")
                 try:
                     with open(file_path, 'r', encoding='utf-8') as infile:
-                        outfile.write(infile.read())
-                    outfile.write('\n\n')
+                        content = infile.read()
+                    optimized_content = optimize_content(content, file_extension)
+                    outfile.write(optimized_content)
+                    outfile.write('\n')
                 except Exception as e:
                     print(f"Error reading {file_path}: {e}")
-        print("Created output.txt with aggregated file contents.")
+        print("Created optimized output.txt with aggregated file contents.")
     else:
-        # Delete existing run-scope.txt if it exists
         delete_file_if_exists('run-scope.txt')
-        
-        # Create run-scope.txt with the list of files (relative paths)
         with open('run-scope.txt', 'w', encoding='utf-8') as scope_file:
             for file_path in matching_files:
                 relative_path = os.path.relpath(file_path, folder)
